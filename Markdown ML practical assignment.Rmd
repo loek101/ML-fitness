@@ -1,0 +1,59 @@
+---
+title: "ML Fitness tracker data"
+author: "Loek van der Kallen"
+date: "10/03/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## ML Fitness tracker data
+
+In this document I describe the application of a Machine Learning algorithm on a dataset with fitness trackers. The subjecs have performed the fitness exercise in various manners according to instructions from professionals. Based on the tracker data, I trained the algorithm to predict the correct categories in a test dataset.
+
+# Preprocessing
+
+At first glance I found a lot of NA's in the data, so I removed them. Also, the variables with "new_window" == contained a different amount of data, so I removed them as well. Luckily these were only 406 samples out of 19622, so we have plenty data left to work with. Next, variables with only 10 unique values or less were also removed since it is unlikely that they contribute much to the algorthm. Furthermore I removed any variables that were associated with the time that the experiment was held. In order to obtain an algorithm that can adequately predict future (new) data, we would't want it to rely un such factors. 
+
+
+```{r}
+library(caret)
+library(randomForest)
+
+na_strings <- c("#DIV/0!","NA")
+training = read.csv("pml-training.csv", na = na_strings)
+testing = read.csv("pml-testing.csv", na = na_strings)
+training <- training[,-c(1,3:5,7)]
+training2 <- training[training$new_window == "no",]
+pre1 <- sapply(training2, unique)
+pre2 <- sapply(pre1, length)
+pre3 <- pre2 > 10
+training3 <- training2[,pre3]
+training4 <- data.frame(training3, training2$classe)
+```
+
+## Training the model
+
+I chose a random forest (RF) model since this tends to perform well under these circumstances. When using RF it is important to crossvalidate. I chose k-fold crossvalidation, with k set to 20. This is relatively high, but since we have a large dataset this is actually an advantage, because it cuts up the dataset into more manageable sized portions that are still large enough to follow the central limit theorem. On my laptop, these commands took ~2 hrs to run. 
+
+```{r}
+train_control <- trainControl(method="repeatedcv", number=20, repeats=1)
+modFit <- train(training2.classe ~., method = "rf", , trControl = train_control, data = training4)
+print(modFit)
+```
+
+## Preprocessing the testing data and making the prediction
+
+It is important that we preprocess the testing data exactly the same as the training data. Subsequently we can make predictions about the classes of the testing data. 
+
+```{r}
+testing <- testing[,-c(1,3:5,7)]
+testing2 <- testing[testing$new_window == "no",]
+testing3 <- testing2[,pre3]
+pred <- predict(modFit, testing3)
+print(pred)
+```
+
+
